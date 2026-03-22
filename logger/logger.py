@@ -276,11 +276,14 @@ def get_bots():
     """Return distinct bots and their latest game_id + turn."""
     with get_db() as conn:
         rows = conn.execute("""
-            SELECT bot,
-                   MAX(game_id) as game_id,
-                   MAX(turn)    as last_turn,
-                   COUNT(*)     as log_count
-            FROM logs
+            SELECT
+                bot,
+                (SELECT game_id FROM logs l2
+                 WHERE l2.bot = l.bot
+                 ORDER BY l2.created DESC LIMIT 1) AS game_id,
+                MAX(turn)   AS last_turn,
+                COUNT(*)    AS log_count
+            FROM logs l
             GROUP BY bot
             ORDER BY bot
         """).fetchall()
