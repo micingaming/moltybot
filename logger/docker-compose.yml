@@ -1,0 +1,19 @@
+services:
+  logger:
+    build: .
+    container_name: logger
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "5000:5000"
+    volumes:
+      - logger_data:/data   # SQLite persists across restarts
+      - ./static:/app/static # Maps your local 'static' folder to the container
+      - ./:/app
+    environment:
+      - PORT=5000
+      - DB_PATH=/data/logs.db
+      - MAX_LOGS=200000
+
+volumes:
+  logger_data:
