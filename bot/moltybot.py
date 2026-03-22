@@ -985,8 +985,15 @@ class NyrAgent:
                 me   = data["self"]
                 self.last_heartbeat = time.time()
 
-                # Pull currentTurn from agent state response if available
-                self.current_turn = data.get("currentTurn", self.current_turn)
+                # Pull turn counter from API — always increment locally first
+                # as a reliable fallback, then try to sync with the server value.
+                # The API field name may vary (currentTurn / turnNumber / turn).
+                self.current_turn += 1
+                for _fname in ("currentTurn", "turnNumber", "turn"):
+                    _tval = data.get(_fname)
+                    if isinstance(_tval, int) and _tval > 0:
+                        self.current_turn = _tval
+                        break
 
                 # Track picked_starter_weapon from current inventory
                 inv_now = me.get("inventory", [])
