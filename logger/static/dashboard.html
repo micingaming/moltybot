@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Botroyale NYR</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=Barlow+Condensed:wght@400;600;700;800&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:#080b0f; --surface:#0d1117; --panel:#111820; --border:#1c2632;
+  --accent:#00ff9d; --warn:#ffb800; --danger:#ff3d3d; --info:#38bdf8;
+  --purple:#c084fc; --muted:#3d5066; --text:#c9d8e8; --dim:#4a6278;
+  --sys:#f97316;
+}
+
+body { background:var(--bg); color:var(--text); font-family:'IBM Plex Mono',monospace; height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+
+header { display:flex; align-items:center; justify-content:space-between; padding:12px 20px; border-bottom:1px solid var(--border); background:var(--surface); flex-shrink:0; }
+.logo { font-family:'Barlow Condensed',sans-serif; font-size:22px; font-weight:800; letter-spacing:2px; color:var(--accent); text-transform:uppercase; }
+.logo span { color:var(--dim); font-weight:400; }
+.header-stats { display:flex; gap:24px; }
+.stat { display:flex; flex-direction:column; align-items:center; gap:2px; }
+.stat-val { font-size:18px; font-weight:600; font-family:'Barlow Condensed',sans-serif; letter-spacing:1px; }
+.stat-val.green{color:var(--accent)} .stat-val.yellow{color:var(--warn)} .stat-val.red{color:var(--danger)}
+.stat-label { color:var(--muted); font-size:9px; letter-spacing:1px; text-transform:uppercase; }
+.live-dot { display:flex; align-items:center; gap:7px; font-size:11px; color:var(--accent); }
+.dot { width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent);animation:pulse 1.5s infinite; }
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+
+.main { display:flex; flex:1; overflow:hidden; }
+
+/* SIDEBAR */
+.sidebar { width:215px; background:var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; flex-shrink:0; overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
+.sidebar-all { padding:9px 14px; font-size:10px; color:var(--info); cursor:pointer; border-bottom:1px solid var(--border); letter-spacing:1px; display:flex; align-items:center; gap:6px; border-left:2px solid transparent; }
+.sidebar-all:hover{background:var(--panel)}
+.sidebar-all.active{background:var(--panel);color:var(--accent);border-left-color:var(--accent)}
+.game-group { border-bottom:1px solid var(--border); }
+.game-header { padding:7px 14px 5px; display:flex; flex-direction:column; gap:4px; background:#0a0e14; }
+.game-header-row1 { display:flex; align-items:center; gap:6px; }
+.game-header-row2 { display:flex; align-items:center; gap:4px; }
+.game-badge { font-family:'Barlow Condensed',sans-serif; font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase; }
+.game-id-short { font-size:9px; color:var(--dim); background:var(--border); padding:2px 6px; border-radius:2px; cursor:pointer; letter-spacing:0.3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; transition:all 0.15s; user-select:none; flex:1; min-width:0; border:1px solid transparent; }
+.game-id-short:hover { color:var(--accent); border-color:var(--accent); background:#0d2a1a; }
+.game-id-short.copied { color:#000 !important; background:var(--accent) !important; border-color:var(--accent); }
+.game-link-btn { font-size:10px; color:var(--dim); padding:2px 8px; flex-shrink:0; border-radius:2px; border:1px solid var(--border); background:transparent; cursor:pointer; text-decoration:none; transition:all 0.15s; display:inline-flex; align-items:center; gap:3px; font-family:'IBM Plex Mono',monospace; }
+.game-link-btn:hover { color:var(--accent); border-color:var(--accent); background:#0d2a1a; }
+.game-view-btn { font-size:9px; font-family:'IBM Plex Mono',monospace; border:1px solid var(--border); background:transparent; color:var(--dim); padding:2px 7px; border-radius:2px; cursor:pointer; letter-spacing:0.5px; }
+.game-view-btn:hover{border-color:var(--accent);color:var(--accent)}
+.game-view-btn.active{background:var(--accent);color:#000;border-color:var(--accent);font-weight:600}
+.section-header { padding:7px 14px; font-size:9px; letter-spacing:1.5px; text-transform:uppercase; display:flex; align-items:center; gap:6px; background:#0a0e14; border-bottom:1px solid var(--border); }
+.sdot { width:5px;height:5px;border-radius:50%; }
+.sdot.standby{background:var(--warn);animation:pulse 1s infinite}
+.sdot.dead{background:var(--danger)}
+.bot-item { display:flex; align-items:center; gap:8px; padding:6px 14px 6px 22px; cursor:pointer; border-left:2px solid transparent; transition:background 0.1s; }
+.bot-item:hover{background:var(--panel)}
+.bot-item.active{border-left-color:var(--accent);background:var(--panel)}
+.bot-item.dead{opacity:0.35}
+.bsdot { width:5px;height:5px;border-radius:50%;flex-shrink:0; }
+.bsdot.alive{background:var(--accent);box-shadow:0 0 4px var(--accent);animation:pulse 2s infinite}
+.bsdot.dead{background:var(--danger)}
+.bsdot.standby{background:var(--warn);animation:pulse 1s infinite}
+.bot-name-lbl { font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1; }
+.bot-turn-lbl { font-size:9px; color:var(--muted); flex-shrink:0; }
+
+/* LOG AREA */
+.log-area { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+
+/* CHANNEL TABS */
+.tab-bar { display:flex; align-items:stretch; gap:0; background:var(--surface); border-bottom:1px solid var(--border); flex-shrink:0; }
+.tab-btn {
+  font-family:'Barlow Condensed',sans-serif; font-size:13px; font-weight:700;
+  letter-spacing:2px; text-transform:uppercase; padding:9px 22px;
+  border:none; border-bottom:2px solid transparent; background:transparent;
+  color:var(--dim); cursor:pointer; transition:all 0.15s; display:flex; align-items:center; gap:7px;
+}
+.tab-btn:hover { color:var(--text); background:var(--panel); }
+.tab-btn.active.game-tab { color:var(--accent); border-bottom-color:var(--accent); }
+.tab-btn.active.sys-tab  { color:var(--sys);    border-bottom-color:var(--sys); }
+.tab-badge {
+  font-size:9px; font-family:'IBM Plex Mono',monospace; font-weight:400;
+  padding:1px 6px; border-radius:10px; background:var(--border); color:var(--muted);
+  letter-spacing:0;
+}
+.tab-btn.active.game-tab .tab-badge { background:#0d2a1a; color:var(--accent); }
+.tab-btn.active.sys-tab  .tab-badge { background:#2a1500; color:var(--sys); }
+
+.log-toolbar { display:flex; align-items:center; gap:8px; padding:8px 16px; border-bottom:1px solid var(--border); background:var(--surface); flex-shrink:0; flex-wrap:wrap; }
+.filter-btn { font-family:'IBM Plex Mono',monospace; font-size:10px; padding:3px 10px; border-radius:3px; border:1px solid var(--border); background:transparent; color:var(--dim); cursor:pointer; transition:all 0.15s; }
+.filter-btn:hover{border-color:var(--accent);color:var(--accent)}
+.filter-btn.active{background:var(--accent);color:#000;border-color:var(--accent);font-weight:600}
+.filter-btn.kill.active{background:var(--danger);color:#fff;border-color:var(--danger)}
+.filter-btn.move.active{background:var(--info);color:#000;border-color:var(--info)}
+.filter-btn.coord.active{background:var(--purple);color:#000;border-color:var(--purple)}
+.filter-btn.warn.active{background:var(--warn);color:#000;border-color:var(--warn)}
+.filter-btn.sys.active{background:var(--sys);color:#000;border-color:var(--sys)}
+.spacer{flex:1}
+.auto-scroll-toggle{font-size:10px;color:var(--dim);cursor:pointer;display:flex;align-items:center;gap:5px;user-select:none}
+.auto-scroll-toggle input{accent-color:var(--accent)}
+.log-count{font-size:10px;color:var(--muted)}
+
+.viewing-bar { padding:4px 16px; font-size:10px; color:var(--dim); background:#090d12; border-bottom:1px solid var(--border); flex-shrink:0; display:flex; align-items:center; gap:8px; }
+.viewing-bar strong{color:var(--accent)}
+
+.log-stream { flex:1; overflow-y:auto; padding:4px 0; scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
+.log-stream::-webkit-scrollbar{width:4px}
+.log-stream::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+.log-line { display:flex; align-items:baseline; padding:2px 16px; font-size:11.5px; line-height:1.75; border-left:2px solid transparent; }
+.log-line:hover{background:#0d1520}
+.log-line.type-kill{border-left-color:var(--danger)}
+.log-line.type-heal{border-left-color:var(--accent)}
+.log-line.type-coord{border-left-color:var(--purple);opacity:0.7}
+.log-line.type-warn{border-left-color:var(--warn);background:#130f00}
+.log-line.type-loot{border-left-color:var(--warn)}
+.log-line.type-move{border-left-color:#161e28}
+.log-line.type-sys{border-left-color:var(--sys);background:#160a00}
+@keyframes flash{from{background:#0d2a1a}to{background:transparent}}
+@keyframes flash-sys{from{background:#2a1500}to{background:transparent}}
+.new.channel-game{animation:flash 0.4s ease}
+.new.channel-system{animation:flash-sys 0.4s ease}
+
+.log-time{color:var(--muted);font-size:10px;width:68px;flex-shrink:0}
+.log-bot{font-size:10px;width:114px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.log-turn{color:var(--dim);font-size:10px;width:36px;flex-shrink:0}
+.log-msg{color:var(--text);flex:1;white-space:pre-wrap;word-break:break-word}
+.kill{color:var(--danger);font-weight:600} .heal{color:var(--accent)} .move{color:var(--info)}
+.coord{color:var(--purple)} .warn{color:var(--warn)} .loot{color:var(--warn)}
+.sys-msg{color:var(--sys)}
+
+.bt{font-weight:600;font-size:10px}
+.bc0{color:#00ff9d}.bc1{color:#38bdf8}.bc2{color:#f472b6}.bc3{color:#fb923c}
+.bc4{color:#a78bfa}.bc5{color:#34d399}.bc6{color:#fbbf24}.bc7{color:#60a5fa}
+.bc8{color:#f87171}.bc9{color:#e879f9}
+
+/* ── HISTORY TAB ── */
+.tab-btn.active.hist-tab { color:var(--purple); border-bottom-color:var(--purple); }
+.h-day { margin-bottom:32px; }
+.h-day-header { font-family:'Barlow Condensed',sans-serif; font-size:22px; font-weight:800;
+  letter-spacing:2px; color:var(--purple); border-bottom:1px solid var(--border);
+  padding-bottom:8px; margin-bottom:16px; display:flex; align-items:baseline; gap:16px; }
+.h-day-sub { font-size:11px; font-weight:400; letter-spacing:1px; color:var(--muted); font-family:'IBM Plex Mono',monospace; }
+.h-summary-row { display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
+.h-stat { background:var(--surface); border:1px solid var(--border); padding:12px 18px; min-width:110px; }
+.h-stat-val { font-family:'Barlow Condensed',sans-serif; font-size:26px; font-weight:800; line-height:1; }
+.h-stat-lbl { font-size:9px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); margin-top:4px; }
+.h-table { width:100%; border-collapse:collapse; margin-bottom:16px; }
+.h-table th { text-align:left; padding:8px 12px; font-size:9px; letter-spacing:1px;
+  text-transform:uppercase; color:var(--muted); border-bottom:1px solid var(--border); }
+.h-table td { padding:10px 12px; font-size:11px; border-bottom:1px solid #0d1520; cursor:pointer; }
+.h-table tbody tr:hover { background:var(--panel); }
+.h-wr { display:inline-block; padding:2px 8px; font-size:10px; font-weight:700; letter-spacing:0.5px; }
+.h-wr.hi { background:rgba(0,255,157,0.1);  color:var(--accent); border:1px solid rgba(0,255,157,0.2); }
+.h-wr.md { background:rgba(255,184,0,0.1);  color:var(--warn);   border:1px solid rgba(255,184,0,0.2); }
+.h-wr.lo { background:rgba(255,61,61,0.1);  color:var(--danger); border:1px solid rgba(255,61,61,0.2); }
+.h-expand { background:var(--surface); border:1px solid var(--border); padding:16px; margin-bottom:8px; display:none; }
+.h-expand.open { display:block; }
+.h-games-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:10px; margin-top:12px; }
+.h-game-card { border:1px solid var(--border); padding:14px; }
+.h-game-card.win  { border-left:3px solid var(--accent); }
+.h-game-card.loss { border-left:3px solid var(--danger); }
+.h-game-card.unknown,.h-game-card.ongoing { border-left:3px solid var(--muted); }
+.h-game-id   { font-size:9px; color:var(--dim); margin-bottom:6px; letter-spacing:0.5px; }
+.h-game-out  { font-family:'Barlow Condensed',sans-serif; font-size:18px; font-weight:800; margin-bottom:6px; }
+.h-game-out.win  { color:var(--accent); }
+.h-game-out.loss { color:var(--danger); }
+.h-game-out.unknown,.h-game-out.ongoing { color:var(--muted); }
+.h-game-meta { font-size:10px; color:var(--dim); line-height:1.9; }
+.h-game-meta b { color:var(--text); }
+.h-loading { text-align:center; padding:60px; color:var(--muted); font-size:11px; }
+.h-empty   { text-align:center; padding:60px; color:var(--muted); font-size:11px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Botroyale <span>/ NYR</span></div>
+  <div class="header-stats">
+    <div class="stat"><div class="stat-val green" id="h-alive">0</div><div class="stat-label">Alive</div></div>
+    <div class="stat"><div class="stat-val yellow" id="h-standby">0</div><div class="stat-label">Standby</div></div>
+    <div class="stat"><div class="stat-val red" id="h-dead">0</div><div class="stat-label">Dead</div></div>
+    <div class="stat"><div class="stat-val" id="h-logs" style="color:var(--text)">0</div><div class="stat-label">Logs</div></div>
+  </div>
+  <div class="live-dot"><div class="dot"></div>LIVE</div>
+</header>
+
+<div class="main">
+  <div class="sidebar">
+    <div class="sidebar-all active" id="btn-all" onclick="selectView('all',null)">⊞ All Bots</div>
+    <div id="sidebar-body"></div>
+  </div>
+  <div class="log-area">
+
+    <!-- CHANNEL TABS -->
+    <div class="tab-bar">
+      <button class="tab-btn game-tab active" id="tab-game" onclick="setChannel('game')">
+        🎮 Game Actions
+        <span class="tab-badge" id="badge-game">0</span>
+      </button>
+      <button class="tab-btn sys-tab" id="tab-sys" onclick="setChannel('system')">
+        ⚙️ System
+        <span class="tab-badge" id="badge-sys">0</span>
+      </button>
+      <button class="tab-btn" id="tab-history" onclick="setChannel('history')" style="color:var(--purple);border-bottom:2px solid transparent">
+        📊 History
+      </button>
+    </div>
+
+    <div class="log-toolbar" id="game-toolbar">
+      <button class="filter-btn active" data-type="all"   onclick="setFilter(this,'all')">ALL</button>
+      <button class="filter-btn kill"   data-type="kill"  onclick="setFilter(this,'kill')">💀 KILL</button>
+      <button class="filter-btn move"   data-type="move"  onclick="setFilter(this,'move')">🏃 MOVE</button>
+      <button class="filter-btn heal"   data-type="heal"  onclick="setFilter(this,'heal')">💊 HEAL</button>
+      <button class="filter-btn warn"   data-type="warn"  onclick="setFilter(this,'warn')">⚠️ WARN</button>
+      <button class="filter-btn coord"  data-type="coord" onclick="setFilter(this,'coord')">🔗 COORD</button>
+      <div class="spacer"></div>
+      <span class="log-count" id="log-count">0 lines</span>
+      <label class="auto-scroll-toggle"><input type="checkbox" id="auto-scroll" checked>Auto-scroll</label>
+    </div>
+    <div class="log-toolbar" id="sys-toolbar" style="display:none">
+      <button class="filter-btn active" data-type="all"     onclick="setSysFilter(this,'all')">ALL</button>
+      <button class="filter-btn"        data-type="join"    onclick="setSysFilter(this,'join')" style="color:var(--sys)">🚀 JOIN</button>
+      <button class="filter-btn"        data-type="standby" onclick="setSysFilter(this,'standby')" style="color:var(--warn)">⏳ STANDBY</button>
+      <button class="filter-btn warn"   data-type="error"   onclick="setSysFilter(this,'error')">❌ ERROR</button>
+      <div class="spacer"></div>
+      <span class="log-count" id="sys-count">0 lines</span>
+      <label class="auto-scroll-toggle"><input type="checkbox" id="sys-auto-scroll" checked>Auto-scroll</label>
+    </div>
+
+    <div class="viewing-bar" id="viewing-bar">Viewing: <strong>All Bots</strong></div>
+    <div class="log-stream" id="log-stream"></div>
+    <div class="log-stream" id="sys-stream" style="display:none"></div>
+  </div>
+  <div id="history-panel" style="display:none;flex:1;overflow-y:auto;background:var(--bg);padding:24px;font-family:'IBM Plex Mono',monospace">
+    <div id="history-content" style="max-width:1100px;margin:0 auto"></div>
+  </div>
+</div>
+
+<script>
+// ── STATE ─────────────────────────────────────────
+let logs = [];       // game channel logs
+let sysLogs = [];    // system channel logs
+let BOTS = {};
+let GAME_IDS = {};
+let GAME_COLORS = {};
+let gameColorIdx = 0;
+let selBot = null, selGame = null;
+let activeFilters    = new Set();   // empty = show all
+let activeSysFilters = new Set();   // empty = show all
+// sysFilter replaced by activeSysFilters Set above
+let activeChannel = 'game'; // 'game' | 'system'
+
+const BOT_COLORS = ['bc0','bc1','bc2','bc3','bc4','bc5','bc6','bc7','bc8','bc9'];
+const GAME_COLOR_PALETTE = ['#00ff9d','#38bdf8','#f472b6','#fb923c','#a78bfa','#fbbf24'];
+
+let _renderTimer = null, _sidebarTimer = null;
+let _needFullRebuild = false, _pendingAppend = [], _pendingSysAppend = [];
+
+function scheduleRender() {
+  if (_renderTimer) return;
+  _renderTimer = setTimeout(() => { _renderTimer = null; flushRender(); }, 150);
+}
+function scheduleSidebar() {
+  if (_sidebarTimer) return;
+  _sidebarTimer = setTimeout(() => { _sidebarTimer = null; buildSidebar(); updateStatsOnly(); }, 500);
+}
+
+// ── TABS ─────────────────────────────────────────
+function setChannel(ch) {
+  activeChannel = ch;
+  document.getElementById('tab-game').classList.toggle('active', ch === 'game');
+  document.getElementById('tab-game').className = ch==='game' ? 'tab-btn game-tab active' : 'tab-btn game-tab';
+  document.getElementById('tab-sys').className  = ch==='system' ? 'tab-btn sys-tab active' : 'tab-btn sys-tab';
+  document.getElementById('tab-history').className = ch==='history' ? 'tab-btn hist-tab active' : 'tab-btn';
+  if (ch==='history') {
+    document.getElementById('tab-history').style.cssText = '';
+  } else {
+    document.getElementById('tab-history').style.color = 'var(--purple)';
+    document.getElementById('tab-history').style.borderBottom = '2px solid transparent';
+  }
+  document.getElementById('game-toolbar').style.display    = ch === 'game' ? '' : 'none';
+  document.getElementById('sys-toolbar').style.display     = ch === 'system' ? '' : 'none';
+  document.getElementById('log-stream').style.display      = ch === 'game' ? '' : 'none';
+  document.getElementById('sys-stream').style.display      = ch === 'system' ? '' : 'none';
+  document.getElementById('history-panel').style.display   = ch === 'history' ? 'flex' : 'none';
+  document.getElementById('viewing-bar').style.display     = ch === 'history' ? 'none' : '';
+  if (ch === 'history' && !historyLoaded) { historyLoaded = true; loadHistory(); }
+  if (ch !== 'history') { _pendingAppend = []; _pendingSysAppend = []; _needFullRebuild = true; renderActive(); }
+}
+
+// ── SIDEBAR ───────────────────────────────────────
+function updateStatsOnly() {
+  const vals = Object.values(BOTS);
+  document.getElementById('h-alive').textContent   = vals.filter(b=>b.status==='alive').length;
+  document.getElementById('h-standby').textContent = vals.filter(b=>b.status==='standby').length;
+  document.getElementById('h-dead').textContent    = vals.filter(b=>b.status==='dead').length;
+  document.getElementById('h-logs').textContent    = logs.length + sysLogs.length;
+  document.getElementById('badge-game').textContent = logs.length;
+  document.getElementById('badge-sys').textContent  = sysLogs.length;
+}
+
+function buildSidebar() {
+  updateStatsOnly();
+  const gameMap = {};
+  const standbyBots = [], deadBots = [];
+  Object.entries(BOTS).forEach(([name, b]) => {
+    if (b.game) {
+      if (!gameMap[b.game]) gameMap[b.game] = [];
+      gameMap[b.game].push([name, b]);
+    } else if (b.status === 'dead') deadBots.push([name, b]);
+    else standbyBots.push([name, b]);
+  });
+
+  let html = '';
+  Object.entries(gameMap).forEach(([gk, bots], gi) => {
+    const shortId = (GAME_IDS[gk] || gk).slice(-8);
+    const color = GAME_COLORS[gk] || '#00ff9d';
+    html += `<div class="game-group">
+      <div class="game-header">
+        <div class="game-header-row1">
+          <span class="game-badge" style="color:${color}">GAME ${gi+1}</span>
+          <button class="game-view-btn ${selGame===gk?'active':''}" onclick="selectView('game','${gk}')">filter</button>
+        </div>
+        <div class="game-header-row2">
+          <span class="game-id-short" id="gid-${gk}" onclick="copyGameId(event,'${gk}')" title="Click to copy">${shortId}</span>
+          <a class="game-link-btn" href="https://www.moltyroyale.com/games/${GAME_IDS[gk]||gk}" target="_blank">↗</a>
+        </div>
+      </div>`;
+    bots.forEach(([name, b]) => {
+      html += `<div class="bot-item ${b.status==='dead'?'dead':''} ${selBot===name?'active':''}" onclick="selectView('bot','${name}')">
+        <div class="bsdot ${b.status}"></div>
+        <span class="bot-name-lbl bt ${b.color}">${name}</span>
+        <span class="bot-turn-lbl">T${b.turn||0}</span>
+      </div>`;
+    });
+    html += '</div>';
+  });
+
+  if (standbyBots.length) {
+    html += `<div class="section-header"><div class="sdot standby"></div>STANDBY (${standbyBots.length})</div>`;
+    standbyBots.forEach(([name, b]) => {
+      html += `<div class="bot-item ${selBot===name?'active':''}" onclick="selectView('bot','${name}')">
+        <div class="bsdot standby"></div>
+        <span class="bot-name-lbl bt ${b.color}">${name}</span>
+        <span class="bot-turn-lbl">—</span>
+      </div>`;
+    });
+  }
+  if (deadBots.length) {
+    html += `<div class="section-header"><div class="sdot dead"></div>DEAD (${deadBots.length})</div>`;
+    deadBots.forEach(([name, b]) => {
+      html += `<div class="bot-item dead ${selBot===name?'active':''}" onclick="selectView('bot','${name}')">
+        <div class="bsdot dead"></div>
+        <span class="bot-name-lbl bt ${b.color}">${name}</span>
+        <span class="bot-turn-lbl">T${b.turn||0}</span>
+      </div>`;
+    });
+  }
+  document.getElementById('sidebar-body').innerHTML = html;
+}
+
+// ── VIEW SELECT ───────────────────────────────────
+function selectView(type, key) {
+  selBot = null; selGame = null;
+  document.getElementById('btn-all').classList.remove('active');
+  let label = 'All Bots';
+  if (type === 'all') { document.getElementById('btn-all').classList.add('active'); }
+  else if (type === 'bot') {
+    selBot = key;
+    const b = BOTS[key];
+    label = `<span class="bt ${b?.color}">${key}</span>`;
+  } else if (type === 'game') {
+    selGame = key;
+    label = `Game <span style='color:var(--dim);font-size:9px'>${GAME_IDS[key]||key}</span>`;
+  }
+  document.getElementById('viewing-bar').innerHTML = `Viewing: <strong>${label}</strong>`;
+  _pendingAppend = []; _pendingSysAppend = [];
+  _needFullRebuild = true;
+  buildSidebar();
+  renderActive();
+}
+
+// ── FILTERS ───────────────────────────────────────
+// filter/sysFilter are now Sets of active types. Empty set = show all (same as ALL).
+function setFilter(btn, type) {
+  const allBtn = document.querySelector('#game-toolbar .filter-btn[data-type="all"]');
+  if (type === 'all') {
+    // ALL clears all active selections
+    activeFilters.clear();
+    document.querySelectorAll('#game-toolbar .filter-btn').forEach(b => b.classList.remove('active'));
+    allBtn && allBtn.classList.add('active');
+  } else {
+    // Deactivate ALL button
+    allBtn && allBtn.classList.remove('active');
+    // Toggle this filter
+    if (activeFilters.has(type)) {
+      activeFilters.delete(type);
+      btn.classList.remove('active');
+    } else {
+      activeFilters.add(type);
+      btn.classList.add('active');
+    }
+    // If nothing selected, revert to ALL
+    if (activeFilters.size === 0) {
+      allBtn && allBtn.classList.add('active');
+    }
+  }
+  _pendingAppend = [];
+  _needFullRebuild = true;
+  renderActive();
+}
+
+function setSysFilter(btn, type) {
+  const allBtn = document.querySelector('#sys-toolbar .filter-btn[data-type="all"]');
+  if (type === 'all') {
+    activeSysFilters.clear();
+    document.querySelectorAll('#sys-toolbar .filter-btn').forEach(b => b.classList.remove('active'));
+    allBtn && allBtn.classList.add('active');
+  } else {
+    allBtn && allBtn.classList.remove('active');
+    if (activeSysFilters.has(type)) {
+      activeSysFilters.delete(type);
+      btn.classList.remove('active');
+    } else {
+      activeSysFilters.add(type);
+      btn.classList.add('active');
+    }
+    if (activeSysFilters.size === 0) {
+      allBtn && allBtn.classList.add('active');
+    }
+  }
+  _pendingSysAppend = [];
+  _needFullRebuild = true;
+  renderActive();
+}
+
+// ── LOG CLASSIFY ──────────────────────────────────
+function classifyGame(msg) {
+  if (/💀|KILL|☠️|eliminated/.test(msg)) return 'kill';
+  if (/💊|[Hh]eal|potion|HP kritis|medkit|bandage|medical|supply_cache/.test(msg)) return 'heal';
+  if (/⚠️|WATCHDOG|kabur|TERPAKSA|bahaya|Diserang/.test(msg)) return 'warn';
+  if (/COORD/.test(msg)) return 'coord';
+  if (/💰|🎒|[Pp]ickup|[Ll]oot|Moltz/.test(msg)) return 'loot';
+  return 'move';
+}
+
+function classifySys(msg) {
+  if (/standby|Standby|STANDBY|Trigger|trigger/.test(msg)) return 'standby';
+  if (/[Jj]oin|[Rr]egist|[Rr]eject|[Rr]ecov|[Gg]ame list|[Gg]ame found|✅/.test(msg)) return 'join';
+  if (/[Ee]rror|[Ff]ail|RESET|reset|❌|⚠️/.test(msg)) return 'error';
+  return 'other';
+}
+
+// ── VISIBILITY ────────────────────────────────────
+function logVisibleGame(e) {
+  if (selBot && e.bot !== selBot) return false;
+  if (selGame && e.game !== selGame) return false;
+  if (activeFilters.size > 0 && !activeFilters.has(e.type)) return false;
+  return true;
+}
+
+function logVisibleSys(e) {
+  if (selBot && e.bot !== selBot) return false;
+  if (activeSysFilters.size === 0) return true;
+  return activeSysFilters.has(e.stype);
+}
+
+// ── DOM HELPERS ───────────────────────────────────
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function makeGameEl(l, isNew) {
+  const div = document.createElement('div');
+  div.className = `log-line type-${l.type}${isNew?' new channel-game':''}`;
+  const b = BOTS[l.bot] || {};
+  div.innerHTML = `<span class="log-time">${l.time}</span><span class="log-bot bt ${b.color||''}">${esc(l.bot)}</span><span class="log-turn">${l.turn?'T'+l.turn:''}</span><span class="log-msg ${l.type}">${esc(l.msg)}</span>`;
+  return div;
+}
+
+function makeSysEl(l, isNew) {
+  const div = document.createElement('div');
+  div.className = `log-line type-sys${isNew?' new channel-system':''}`;
+  const b = BOTS[l.bot] || {};
+  div.innerHTML = `<span class="log-time">${l.time}</span><span class="log-bot bt ${b.color||''}">${esc(l.bot)}</span><span class="log-turn">${l.turn?'T'+l.turn:''}</span><span class="log-msg sys-msg">${esc(l.msg)}</span>`;
+  return div;
+}
+
+// ── RENDER ────────────────────────────────────────
+function renderActive() {
+  if (activeChannel === 'game') renderGame();
+  else renderSys();
+}
+
+function flushRender() {
+  if (activeChannel === 'game') {
+    if (_needFullRebuild) { renderGame(); _needFullRebuild = false; _pendingAppend = []; return; }
+    flushGameAppend();
+  } else {
+    if (_needFullRebuild) { renderSys(); _needFullRebuild = false; _pendingSysAppend = []; return; }
+    flushSysAppend();
+  }
+}
+
+function renderGame() {
+  const stream = document.getElementById('log-stream');
+  const visible = logs.filter(logVisibleGame).slice(-2000);
+  const frag = document.createDocumentFragment();
+  visible.forEach(l => frag.appendChild(makeGameEl(l, false)));
+  stream.innerHTML = '';
+  stream.appendChild(frag);
+  document.getElementById('log-count').textContent = visible.length + ' lines';
+  if (document.getElementById('auto-scroll').checked) stream.scrollTop = stream.scrollHeight;
+}
+
+function renderSys() {
+  const stream = document.getElementById('sys-stream');
+  const visible = sysLogs.filter(logVisibleSys).slice(-2000);
+  const frag = document.createDocumentFragment();
+  visible.forEach(l => frag.appendChild(makeSysEl(l, false)));
+  stream.innerHTML = '';
+  stream.appendChild(frag);
+  document.getElementById('sys-count').textContent = visible.length + ' lines';
+  if (document.getElementById('sys-auto-scroll').checked) stream.scrollTop = stream.scrollHeight;
+}
+
+function flushGameAppend() {
+  if (!_pendingAppend.length) return;
+  const stream = document.getElementById('log-stream');
+  const visible = _pendingAppend.filter(logVisibleGame);
+  _pendingAppend = [];
+  if (!visible.length) return;
+  const frag = document.createDocumentFragment();
+  visible.forEach(l => frag.appendChild(makeGameEl(l, true)));
+  stream.appendChild(frag);
+  // Trim DOM
+  while (stream.children.length > 2000) stream.removeChild(stream.firstChild);
+  document.getElementById('log-count').textContent = logs.filter(logVisibleGame).length + ' lines';
+  if (document.getElementById('auto-scroll').checked) stream.scrollTop = stream.scrollHeight;
+}
+
+function flushSysAppend() {
+  if (!_pendingSysAppend.length) return;
+  const stream = document.getElementById('sys-stream');
+  const visible = _pendingSysAppend.filter(logVisibleSys);
+  _pendingSysAppend = [];
+  if (!visible.length) return;
+  const frag = document.createDocumentFragment();
+  visible.forEach(l => frag.appendChild(makeSysEl(l, true)));
+  stream.appendChild(frag);
+  while (stream.children.length > 2000) stream.removeChild(stream.firstChild);
+  document.getElementById('sys-count').textContent = sysLogs.filter(logVisibleSys).length + ' lines';
+  if (document.getElementById('sys-auto-scroll').checked) stream.scrollTop = stream.scrollHeight;
+}
+
+// ── ADD LOG ───────────────────────────────────────
+function addLog(bot, msg, turn, gameKey, ts, channel, isNew=true) {
+  const time = ts || new Date().toTimeString().slice(0,8);
+  const isNewBot = !BOTS[bot];
+  if (isNewBot) {
+    const ci = Object.keys(BOTS).length % BOT_COLORS.length;
+    BOTS[bot] = { color: BOT_COLORS[ci], status: 'standby', game: null, turn: turn||0 };
+  }
+  const botObj = BOTS[bot];
+  if (turn) botObj.turn = turn;
+  let statusChanged = false;
+
+  // Only attach game from log metadata if bot is currently in-game (not standby/dead msgs)
+  // Status transitions below will set/clear game correctly
+  const isStandbyMsg = /Entering standby|entering standby mode|back to standby|All games.*exhausted|FULL RESET/i.test(msg);
+  const isDeadMsg    = /Agent dead|AGENT_DEAD|☠️.*Dead|Dead — entering standby/i.test(msg);
+  const isAliveMsg   = /✅.*[Jj]oined|✅.*[Rr]ecovered|Agent recovered.*entering game/i.test(msg);
+  if (gameKey && !isStandbyMsg && !isDeadMsg && botObj.status === 'alive') {
+    botObj.game = gameKey;
+    if (!GAME_IDS[gameKey]) {
+      GAME_IDS[gameKey] = gameKey;
+      GAME_COLORS[gameKey] = GAME_COLOR_PALETTE[gameColorIdx % GAME_COLOR_PALETTE.length];
+      gameColorIdx++;
+      statusChanged = true;
+    }
+  } else if (gameKey && isAliveMsg) {
+    botObj.game = gameKey;
+    if (!GAME_IDS[gameKey]) {
+      GAME_IDS[gameKey] = gameKey;
+      GAME_COLORS[gameKey] = GAME_COLOR_PALETTE[gameColorIdx % GAME_COLOR_PALETTE.length];
+      gameColorIdx++;
+      statusChanged = true;
+    }
+  }
+  // State transitions — matched against exact log strings from bot code
+  if (/☠️.*Dead|Dead — entering standby|Agent dead|AGENT_DEAD/i.test(msg)) {
+    botObj.status = 'dead'; botObj.game = null; statusChanged = true;
+  }
+  if (/Entering standby —|entering standby mode|Game finished.*entering standby|back to standby|All games.*exhausted|FULL RESET/i.test(msg)) {
+    botObj.status = 'standby'; botObj.game = null; statusChanged = true;
+  }
+  if (/✅.*[Jj]oined|✅.*[Rr]ecovered|Agent recovered.*entering game/i.test(msg)) {
+    botObj.status = 'alive'; statusChanged = true;
+    if (gameKey) botObj.game = gameKey;
+  }
+
+  const resolvedGame = gameKey || botObj.game;
+  const ch = (channel === 'system') ? 'system' : 'game';
+
+  if (ch === 'system') {
+    const stype = classifySys(msg);
+    const entry = { bot, msg, time, turn, stype, game: resolvedGame, channel: 'system' };
+    sysLogs.push(entry);
+    if (sysLogs.length > 8000) sysLogs.shift();
+    if (!isNew) return;
+    if (statusChanged || isNewBot) scheduleSidebar();
+    else updateStatsOnly();
+    if (statusChanged || isNewBot) _needFullRebuild = true;
+    if (activeChannel === 'system') { _pendingSysAppend.push(entry); scheduleRender(); }
+  } else {
+    const type = classifyGame(msg);
+    const entry = { bot, msg, time, turn, type, game: resolvedGame, channel: 'game' };
+    logs.push(entry);
+    if (logs.length > 8000) logs.shift();
+    if (!isNew) return;
+    if (statusChanged || isNewBot) scheduleSidebar();
+    else updateStatsOnly();
+    if (statusChanged || isNewBot) _needFullRebuild = true;
+    if (activeChannel === 'game') { _pendingAppend.push(entry); scheduleRender(); }
+  }
+}
+
+// ── COPY GAME ID ──────────────────────────────────
+function copyGameId(e, gk) {
+  e.stopPropagation();
+  const fullId = GAME_IDS[gk] || gk;
+  const el = document.getElementById('gid-' + gk) || e.target;
+  function onCopied() {
+    el.classList.add('copied');
+    el.textContent = '✓ copied!';
+    setTimeout(() => { el.classList.remove('copied'); el.textContent = GAME_IDS[gk] || gk; }, 1500);
+  }
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(fullId).then(onCopied).catch(() => fallbackCopy(fullId, onCopied));
+  } else { fallbackCopy(fullId, onCopied); }
+}
+function fallbackCopy(text, callback) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0';
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  try { document.execCommand('copy'); callback(); } catch(e) {}
+  document.body.removeChild(ta);
+}
+
+// ── BACKEND ───────────────────────────────────────
+async function applyLiveStatus() {
+  // Overwrite BOTS state with ground truth from Redis via /status
+  // Called after log replay so stale log inference is corrected
+  try {
+    const res  = await fetch('/status');
+    const live = await res.json();
+    let changed = false;
+    Object.entries(live).forEach(([name, s]) => {
+      if (!BOTS[name]) {
+        const ci = Object.keys(BOTS).length % BOT_COLORS.length;
+        BOTS[name] = { color: BOT_COLORS[ci], status: s.status, game: s.game_id, turn: 0 };
+        changed = true;
+        return;
+      }
+      const b = BOTS[name];
+      if (b.status !== s.status || b.game !== s.game_id) {
+        b.status  = s.status;
+        b.game    = s.game_id;
+        // Register new game colour if needed
+        if (s.game_id && !GAME_IDS[s.game_id]) {
+          GAME_IDS[s.game_id] = s.game_id;
+          GAME_COLORS[s.game_id] = GAME_COLOR_PALETTE[gameColorIdx % GAME_COLOR_PALETTE.length];
+          gameColorIdx++;
+        }
+        changed = true;
+      }
+    });
+    if (changed) buildSidebar();
+  } catch(e) { console.warn('Could not fetch /status:', e); }
+}
+
+async function loadInitialLogs() {
+  try {
+    const [gameRes, sysRes] = await Promise.all([
+      fetch('/logs?limit=1000&channel=game'),
+      fetch('/logs?limit=1000&channel=system')
+    ]);
+    const [gameLogs, sysLogsData] = await Promise.all([gameRes.json(), sysRes.json()]);
+    const all = [
+      ...gameLogs.map(l => ({...l, channel:'game'})),
+      ...sysLogsData.map(l => ({...l, channel:'system'}))
+    ].sort((a,b) => a.created - b.created);
+    all.forEach(l => addLog(l.bot, l.msg, l.turn, l.game_id, l.ts, l.channel, false));
+    // Render log replay result first, then overwrite with live Redis state
+    buildSidebar();
+    renderActive();
+    document.getElementById('log-stream').scrollTop = document.getElementById('log-stream').scrollHeight;
+    document.getElementById('sys-stream').scrollTop = document.getElementById('sys-stream').scrollHeight;
+    // Ground truth overwrites any stale inference from log replay
+    await applyLiveStatus();
+  } catch(e) { console.error('Failed to load logs:', e); }
+}
+
+function connectSSE() {
+  const es = new EventSource('/stream');
+  es.onmessage = e => {
+    const l = JSON.parse(e.data);
+    addLog(l.bot, l.msg, l.turn, l.game_id, l.ts, l.channel || 'game', true);
+  };
+  es.onerror = () => { es.close(); setTimeout(connectSSE, 3000); };
+}
+
+async function init() {
+  await loadInitialLogs();
+  connectSSE();
+}
+
+
+// ── HISTORY TAB ──────────────────────────────────
+let historyData = null;
+let historyLoaded = false;
+let historyExpandedBot = null; // "date|bot"
+
+async function loadHistory() {
+  const el = document.getElementById('history-content');
+  el.innerHTML = '<div class="h-loading">Loading history...</div>';
+  try {
+    const res = await fetch('/history');
+    historyData = await res.json();
+    renderHistory();
+  } catch(e) {
+    el.innerHTML = '<div class="h-empty">Failed to load history. Is /history endpoint available?</div>';
+  }
+}
+
+function renderHistory() {
+  const el = document.getElementById('history-content');
+  const dates = Object.keys(historyData || {}).sort().reverse();
+  if (!dates.length) {
+    el.innerHTML = '<div class="h-empty">No game history found yet.<br>History is built from bot join/death/win logs.</div>';
+    return;
+  }
+
+  let html = '';
+  dates.forEach(date => {
+    const dayBots = historyData[date];
+    const bots = Object.keys(dayBots).sort();
+    let dayGames=0, dayWins=0, dayLosses=0, dayKills=0;
+    bots.forEach(b => {
+      dayGames  += dayBots[b].games;
+      dayWins   += dayBots[b].wins;
+      dayLosses += dayBots[b].losses;
+      dayKills  += dayBots[b].total_kills;
+    });
+    const dayWr = dayGames ? Math.round(dayWins/dayGames*100) : 0;
+
+    html += `<div class="h-day">
+      <div class="h-day-header">
+        ${date}
+        <span class="h-day-sub">${dayGames} games · ${dayWins}W ${dayLosses}L · ${dayKills} kills</span>
+      </div>
+      <div class="h-summary-row">
+        <div class="h-stat"><div class="h-stat-val" style="color:var(--info)">${bots.length}</div><div class="h-stat-lbl">Bots</div></div>
+        <div class="h-stat"><div class="h-stat-val">${dayGames}</div><div class="h-stat-lbl">Games</div></div>
+        <div class="h-stat"><div class="h-stat-val" style="color:var(--accent)">${dayWins}</div><div class="h-stat-lbl">Wins</div></div>
+        <div class="h-stat"><div class="h-stat-val" style="color:var(--danger)">${dayLosses}</div><div class="h-stat-lbl">Losses</div></div>
+        <div class="h-stat"><div class="h-stat-val" style="color:var(--warn)">${dayKills}</div><div class="h-stat-lbl">Kills</div></div>
+        <div class="h-stat"><div class="h-stat-val" style="color:${dayWr>=50?'var(--accent)':dayWr>=25?'var(--warn)':'var(--danger)'}">${dayWr}%</div><div class="h-stat-lbl">Win Rate</div></div>
+      </div>
+      <table class="h-table">
+        <thead><tr>
+          <th>Bot</th><th>Games</th><th>Wins</th><th>Losses</th>
+          <th>Win Rate</th><th>Kills</th><th>Avg Turns</th>
+        </tr></thead>
+        <tbody>`;
+
+    bots.forEach(bot => {
+      const d = dayBots[bot];
+      const wr = d.games ? Math.round(d.wins/d.games*100) : 0;
+      const wrCls = wr>=50?'hi':wr>=20?'md':'lo';
+      const expandKey = `${date}|${bot}`;
+      const botColor = BOTS[bot]?.color || '';
+      html += `
+        <tr onclick="toggleHistoryBot('${expandKey}')">
+          <td class="bt ${botColor}">${bot}</td>
+          <td>${d.games}</td>
+          <td style="color:var(--accent)">${d.wins}</td>
+          <td style="color:var(--danger)">${d.losses}</td>
+          <td><span class="h-wr ${wrCls}">${wr}%</span></td>
+          <td style="color:var(--warn)">${d.total_kills}</td>
+          <td style="color:var(--dim)">${d.avg_survival_turn}t</td>
+        </tr>
+        <tr id="hexp-row-${expandKey.replace('|','-')}" style="display:none">
+          <td colspan="7" style="padding:0;background:var(--bg)">
+            <div class="h-expand" id="hexp-${expandKey.replace('|','-')}">
+              <div style="font-size:10px;color:var(--purple);letter-spacing:1px;margin-bottom:8px">
+                ${bot} — ${d.games} game${d.games!==1?'s':''} on ${date}
+              </div>
+              <div class="h-games-grid">
+                ${d.game_list.map(g => `
+                  <div class="h-game-card ${g.outcome}">
+                    <div class="h-game-id">${g.game_id ? g.game_id.substring(0,8)+'...' : '—'}</div>
+                    <div class="h-game-out ${g.outcome}">${
+                      g.outcome==='win'     ? '🏆 WIN' :
+                      g.outcome==='loss'    ? '☠️ LOSS' :
+                      g.outcome==='ongoing' ? '⚡ ONGOING' : '? UNKNOWN'
+                    }</div>
+                    <div class="h-game-meta">
+                      ${g.placement ? `<div>Placement <b style="color:${g.placement===1?'var(--accent)':'var(--text)'}">#${g.placement}</b></div>` : ''}
+                      <div>Joined <b>${g.joined_ts||'—'}</b></div>
+                      ${g.ended_ts ? `<div>Ended <b>${g.ended_ts}</b></div>` : ''}
+                      <div>Survived <b>${g.survival_turn||0} turns</b></div>
+                      <div>Kills <b style="color:var(--warn)">${g.kills}</b></div>
+                      ${g.game_id ? `<div style="margin-top:4px"><a href="https://www.moltyroyale.com/games/${g.game_id}" target="_blank" style="color:var(--info);font-size:9px;text-decoration:none">↗ View game</a></div>` : ''}
+                    </div>
+                  </div>`).join('')}
+              </div>
+            </div>
+          </td>
+        </tr>`;
+    });
+
+    html += `</tbody></table></div>`;
+  });
+
+  el.innerHTML = html;
+}
+
+function toggleHistoryBot(key) {
+  const safeKey = key.replace('|', '-');
+  const row     = document.getElementById(`hexp-row-${safeKey}`);
+  const panel   = document.getElementById(`hexp-${safeKey}`);
+  if (!row || !panel) return;
+  const isOpen = row.style.display !== 'none';
+  // Close all
+  document.querySelectorAll('[id^="hexp-row-"]').forEach(r => r.style.display = 'none');
+  document.querySelectorAll('[id^="hexp-"]').forEach(p => { if(p.tagName==='DIV') p.classList.remove('open'); });
+  // Open if was closed
+  if (!isOpen) {
+    row.style.display = 'table-row';
+    panel.classList.add('open');
+  }
+}
+
+buildSidebar();
+init();
+</script>
+</body>
+</html>
