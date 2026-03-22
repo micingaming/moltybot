@@ -1,0 +1,6 @@
+FROM python:3.11-slim
+WORKDIR /app
+RUN mkdir -p /data
+RUN pip install flask requests --no-cache-dir
+COPY static/ static/
+CMD ["python", "-u", "logger.py"]
