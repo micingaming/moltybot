@@ -1,0 +1,70 @@
+services:
+  bot1:
+    image: moltybotimg
+    container_name: bot1
+    restart: unless-stopped
+    working_dir: /app
+    env_file: .env
+    volumes:
+      - ./:/app
+    environment:
+      - BOT_INDEX=1
+      - AGENT_NAME=${BOT1_NAME}
+      - API_KEY=${BOT1_API}
+    command: python moltybot.py
+
+  bot2:
+    image: moltybotimg
+    container_name: bot2
+    restart: unless-stopped
+    working_dir: /app
+    env_file: .env
+    volumes:
+      - ./:/app
+    environment:
+      - BOT_INDEX=2
+      - AGENT_NAME=${BOT2_NAME}
+      - API_KEY=${BOT2_API}
+    command: python moltybot.py
+
+  bot3:
+    image: moltybotimg
+    container_name: bot3
+    restart: unless-stopped
+    working_dir: /app
+    env_file: .env
+    volumes:
+      - ./:/app
+    environment:
+      - BOT_INDEX=3
+      - AGENT_NAME=${BOT3_NAME}
+      - API_KEY=${BOT3_API}
+    command: python moltybot.py
+
+  bot4:
+    image: moltybotimg
+    container_name: bot4
+    restart: unless-stopped
+    working_dir: /app
+    env_file: .env
+    volumes:
+      - ./:/app
+    environment:
+      - BOT_INDEX=4
+      - AGENT_NAME=${BOT4_NAME}
+      - API_KEY=${BOT4_API}
+    command: python moltybot.py
+
+  bot5:
+    image: moltybotimg
+    container_name: bot5
+    restart: unless-stopped
+    working_dir: /app
+    env_file: .env
+    volumes:
+      - ./:/app
+    environment:
+      - BOT_INDEX=5
+      - AGENT_NAME=${BOT5_NAME}
+      - API_KEY=${BOT5_API}
+    command: python moltybot.py
