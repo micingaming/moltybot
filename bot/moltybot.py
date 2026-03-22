@@ -179,6 +179,7 @@ class NyrAgent:
         self.heartbeat_timeout   = 600
         self.state_fail_count    = 0
         self.state_fail_limit    = 5
+        self.replied_message_ids = set()  # track whisper IDs already replied to (avoid re-reply each turn)
 
     # =========================
     # MEMORY
@@ -941,6 +942,7 @@ class NyrAgent:
         self.move_counter = 0
         self.last_activity_region = None
         self.picked_starter_weapon = False
+        self.replied_message_ids = set()  # clear reply tracker for new game
 
         for f in [self.mem_file, self.agent_file, self.game_file, self.dzreg_file]:
             if os.path.exists(f):
