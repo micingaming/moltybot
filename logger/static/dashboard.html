@@ -649,30 +649,42 @@ function fallbackCopy(text, callback) {
 
 // ── BACKEND ───────────────────────────────────────
 async function applyLiveStatus() {
-  // Overwrite BOTS state with ground truth from Redis via /status
-  // Called after log replay so stale log inference is corrected
+  // Overwrite BOTS state with ground truth from /status endpoint.
+  // Called after log replay so stale log inference is corrected.
   try {
     const res  = await fetch('/status');
     const live = await res.json();
     let changed = false;
     Object.entries(live).forEach(([name, s]) => {
+      // Register any new game colour first
+      if (s.game_id && !GAME_IDS[s.game_id]) {
+        GAME_IDS[s.game_id] = s.game_id;
+        GAME_COLORS[s.game_id] = GAME_COLOR_PALETTE[gameColorIdx % GAME_COLOR_PALETTE.length];
+        gameColorIdx++;
+      }
       if (!BOTS[name]) {
         const ci = Object.keys(BOTS).length % BOT_COLORS.length;
-        BOTS[name] = { color: BOT_COLORS[ci], status: s.status, game: s.game_id, turn: 0 };
+        BOTS[name] = {
+          color:  BOT_COLORS[ci],
+          status: s.status,
+          // Only assign game when the bot is actually alive
+          game:   s.status === 'alive' ? (s.game_id || null) : null,
+          turn:   0
+        };
         changed = true;
         return;
       }
       const b = BOTS[name];
-      if (b.status !== s.status || b.game !== s.game_id) {
-        b.status  = s.status;
-        b.game    = s.game_id;
-        // Register new game colour if needed
-        if (s.game_id && !GAME_IDS[s.game_id]) {
-          GAME_IDS[s.game_id] = s.game_id;
-          GAME_COLORS[s.game_id] = GAME_COLOR_PALETTE[gameColorIdx % GAME_COLOR_PALETTE.length];
-          gameColorIdx++;
-        }
-        changed = true;
+      // Determine the correct game assignment:
+      //  alive   → use server game_id; fall back to log-replay value so we never blank a valid game.
+      //  dead / standby → clear game so bot moves out of the game group in sidebar.
+      const newGame = s.status === 'alive'
+        ? (s.game_id || b.game)
+        : null;
+      if (b.status !== s.status || b.game !== newGame) {
+        b.status = s.status;
+        b.game   = newGame;
+        changed  = true;
       }
     });
     if (changed) buildSidebar();
