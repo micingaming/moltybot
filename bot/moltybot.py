@@ -149,10 +149,9 @@ class NyrAgent:
         # Per-bot file isolation — all bots share /app volume so we add BOT_INDEX suffix
         self.key_file      = f"key_api_{BOT_INDEX}.txt"
         self.mem_file      = f"visited_{BOT_INDEX}.json"
-        self.agent_file    = f"agent_id_{BOT_INDEX}.txt"
-        self.game_file     = f"game_id_{BOT_INDEX}.txt"
         self.dzreg_file    = f"dz_regions_{BOT_INDEX}.json"
         self.whitelist_file = "bot_friendly.json"   # shared config, no index needed
+        # game_id and agent_id are always fetched live from /accounts/me — no file needed
 
         self.current_turn = 0
         self.game_id  = None
@@ -161,17 +160,16 @@ class NyrAgent:
         self.picked_starter_weapon = False
 
         self.visited       = self.load_memory()
-        self.api_key       = self.load_or_create_account()
+        self.api_key       = self.load_api_key()
 
         self.headers = {
             "X-API-Key": self.api_key,
             "Content-Type": "application/json"
         }
 
-        self.game_id       = self.load_game_id()
         self.friendly_bots = self.load_friendly_bots()
         self.dz_regions    = self.load_dz_regions()
-        self.agent_id      = self.load_agent_id()
+        # game_id and agent_id start as None — set by recover_from_accounts_me() or find_and_join_game()
 
         self.last_heartbeat      = time.time()
         self.move_counter        = 0
@@ -279,36 +277,9 @@ class NyrAgent:
             log(self.index, f"DZ regions updated: +{len(added)} new (incl. pending). Total: {len(self.dz_regions)}", self.current_turn, self.game_id)
 
     # =========================
-    # LOAD / SAVE IDS
-    # =========================
-    def load_game_id(self):
-        if os.path.exists(self.game_file):
-            gid = open(self.game_file).read().strip()
-            if gid:
-                log(self.index, f"Recovered GameID: {gid}", self.current_turn, self.game_id)
-                return gid
-        return None
-
-    def load_agent_id(self):
-        if os.path.exists(self.agent_file):
-            aid = open(self.agent_file).read().strip()
-            if aid:
-                log(self.index, f"Recovered AgentID: {aid}", self.current_turn, self.game_id)
-                return aid
-        return None
-
-    def save_agent_id(self):
-        if self.agent_id:
-            open(self.agent_file, "w").write(self.agent_id)
-
-    def save_game_id(self):
-        if self.game_id:
-            open(self.game_file, "w").write(self.game_id)
-
-    # =========================
     # ACCOUNT
     # =========================
-    def load_or_create_account(self):
+    def load_api_key(self):
         # 1. Use API key from environment variable (set by docker-compose)
         if API_KEY_ENV:
             log(self.index, "Using API key from environment (API_KEY)", self.current_turn, self.game_id)
@@ -319,15 +290,9 @@ class NyrAgent:
             log(self.index, "Using existing API key from file", self.current_turn, self.game_id)
             return open(self.key_file).read().strip()
 
-        # 3. Create a new account
-        log(self.index, "Creating new account...", self.current_turn, self.game_id)
-        res = safe_request("post", f"{BASE_URL}/accounts", json={"name": self.name}, timeout=15)
-        if res is None:
-            raise RuntimeError("Failed to create account after retries")
-
-        key = res.json()["data"]["apiKey"]
-        open(self.key_file, "w").write(key)
-        return key
+        raise RuntimeError(
+            f"No API key found. Set API_KEY in your .env file or place it in {self.key_file}"
+        )
 
     # =========================
     # RECOVER VIA /accounts/me
@@ -354,8 +319,6 @@ class NyrAgent:
             if game_id and agent_id:
                 self.game_id  = game_id
                 self.agent_id = agent_id
-                self.save_game_id()
-                self.save_agent_id()
                 log(self.index, f"Active game found via accounts/me: game={game_id}, agent={agent_id}", self.current_turn, self.game_id)
                 return True
         except Exception as e:
@@ -423,8 +386,6 @@ class NyrAgent:
 
             if reg.status_code == 201:
                 self.agent_id = reg.json()["data"]["id"]
-                self.save_game_id()
-                self.save_agent_id()
                 log(self.index, f"Joined game {self.game_id} as agent {self.agent_id}", self.current_turn, self.game_id)
                 return
 
@@ -944,7 +905,7 @@ class NyrAgent:
         self.picked_starter_weapon = False
         self.replied_message_ids = set()  # clear reply tracker for new game
 
-        for f in [self.mem_file, self.agent_file, self.game_file, self.dzreg_file]:
+        for f in [self.mem_file, self.dzreg_file]:
             if os.path.exists(f):
                 os.remove(f)
 
