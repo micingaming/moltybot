@@ -340,27 +340,35 @@ def get_status():
     cutoff  = time.time() - 300  # 5-minute activity window
 
     with get_db() as conn:
-        # Latest log per bot within the last 5 minutes
+        # Latest log per bot within the last 5 minutes.
+        # Use a subquery to get the most recent *non-null* game_id — system/heartbeat
+        # logs often have game_id=NULL which would otherwise clear the sidebar game group.
         rows = conn.execute("""
-            SELECT bot,
-                   game_id,
-                   msg,
-                   MAX(created) as last_seen
-            FROM logs
-            WHERE created > ?
-            GROUP BY bot
+            SELECT
+                l.bot,
+                (SELECT l2.game_id FROM logs l2
+                 WHERE l2.bot = l.bot AND l2.game_id IS NOT NULL
+                 ORDER BY l2.created DESC LIMIT 1) AS game_id,
+                l.msg,
+                MAX(l.created) as last_seen
+            FROM logs l
+            WHERE l.created > ?
+            GROUP BY l.bot
         """, (cutoff,)).fetchall()
 
     for row in rows:
         bot_name = row["bot"]
         last_msg = row["msg"] or ""
-        # Treat as inactive if last message indicates a reset or dead state
-        is_inactive = bool(
-            _RE_STANDBY.search(last_msg) or
-            _RE_DEAD.search(last_msg)
-        )
+        # Return distinct statuses so the dashboard can categorise correctly
+                           
+        if _RE_DEAD.search(last_msg):
+            status = "dead"
+        elif _RE_STANDBY.search(last_msg):
+            status = "standby"
+        else:
+            status = "alive"
         result[bot_name] = {
-            "status":    "inactive" if is_inactive else "alive",
+            "status":    status,
             "game_id":   row["game_id"],
             "last_seen": row["last_seen"],
         }
